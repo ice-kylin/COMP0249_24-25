@@ -1,6 +1,6 @@
 classdef KalmanFilter < ebe.localization.LocalizationSystem
 
-    properties(Access = protected)
+    properties (Access = protected)
 
         % Kalman filter prediction
         xPred;
@@ -23,7 +23,7 @@ classdef KalmanFilter < ebe.localization.LocalizationSystem
 
     end
 
-    methods(Access = public)
+    methods (Access = public)
 
         function obj = KalmanFilter(config)
 
@@ -70,7 +70,7 @@ classdef KalmanFilter < ebe.localization.LocalizationSystem
 
     end
 
-    methods(Access = protected)
+    methods (Access = protected)
 
         function success = handleNoPrediction(obj)
             obj.xPred = obj.xEst;
@@ -121,21 +121,24 @@ classdef KalmanFilter < ebe.localization.LocalizationSystem
             % The predicted values are in obj.xPred and obj.PPred
             % The update will put revised values in obj.xEst and
             % obj.PEst
-            
+
+            x = obj.xPred;
+            P = obj.PPred;
+
             % 获取当前实际的 GPS 观测值
             z = event.data;
 
             % 计算卡尔曼增益
-            S = H * obj.PPred * H' + R; % 观测残差协方差
-            C = obj.PPred * H';
+            S = H * P * H' + R; % 观测残差协方差
+            C = P * H';
             K = C / S; % 卡尔曼增益
 
             % 状态更新
-            obj.xEst = obj.xPred + K * (z - zPred);
+            obj.xEst = x + K * (z - zPred);
 
             % 协方差更新
-            I = eye(size(obj.PPred)); % 单位矩阵
-            obj.PEst = (I - K * H) * obj.PPred;
+            I = eye(size(P)); % 单位矩阵
+            obj.PEst = (I - K * H) * P;
 
             success = true;
 
@@ -157,9 +160,25 @@ classdef KalmanFilter < ebe.localization.LocalizationSystem
             % update.
 
             % Predict each measurement
-            for s = 1 : numel(event.info)
+            for s = 1:numel(event.info)
                 sensor = obj.scenario.sensors.bearing.sensors(event.info(s));
                 [zPred, H, R] = obj.systemModel.predictBearingObservation(x, sensor.position, sensor.orientation);
+
+                % 获取当前实际的方位观测值
+                z = event.data(s);
+
+                % 计算卡尔曼增益
+                S = H * P * H' + R; % 观测残差协方差
+
+                C = P * H';
+                K = C / S; % 卡尔曼增益
+
+                % 状态更新
+                x = x + K * (z - zPred);
+
+                % 协方差更新
+                I = eye(size(P)); % 单位矩阵
+                P = (I - K * H) * P;
             end
 
             obj.xEst = x;
@@ -175,5 +194,7 @@ classdef KalmanFilter < ebe.localization.LocalizationSystem
             obj.PStore(:, obj.stepNumber + 1) = diag(obj.PEst);
 
         end
+
     end
+
 end
