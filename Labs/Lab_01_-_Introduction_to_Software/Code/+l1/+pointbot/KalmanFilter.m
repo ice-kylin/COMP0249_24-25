@@ -121,6 +121,21 @@ classdef KalmanFilter < ebe.localization.LocalizationSystem
             % The predicted values are in obj.xPred and obj.PPred
             % The update will put revised values in obj.xEst and
             % obj.PEst
+            
+            % 获取当前实际的 GPS 观测值
+            z = event.data;
+
+            % 计算卡尔曼增益
+            S = H * obj.PPred * H' + R; % 观测残差协方差
+            C = obj.PPred * H';
+            K = C / S; % 卡尔曼增益
+
+            % 状态更新
+            obj.xEst = obj.xPred + K * (z - zPred);
+
+            % 协方差更新
+            I = eye(size(obj.PPred)); % 单位矩阵
+            obj.PEst = (I - K * H) * obj.PPred;
 
             success = true;
 
