@@ -110,7 +110,7 @@ classdef SimulatorView < ebe.graphics.EventGeneratorView
                 wedgeY = [pos(2), arcY, pos(2)];
 
                 % Plot sensor wedge with transparency
-                fill(wedgeX, wedgeY, [1, 0.8, 0.8], 'FaceAlpha', 0.3, 'EdgeColor', 'none');
+                fill(wedgeX, wedgeY, [1, 0.8, 0.8], 'FaceAlpha', 0.5, 'EdgeColor', 'none');
 
                 % Plot edges of the wedge
                 line([pos(1), arcX(1)], [pos(2), arcY(1)], 'Color', 'r', 'LineWidth', 2);
