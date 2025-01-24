@@ -65,6 +65,10 @@ classdef MainLoop < ebe.core.ConfigurableComponent
             obj.postDrawActions{end+1} = activity;
         end        
 
+        function setGraphicsUpdatePeriod(obj, graphicsUpdatePeriod)
+            obj.graphicsUpdatePeriod = graphicsUpdatePeriod;
+        end
+
         function run(obj)
             obj.start();
 

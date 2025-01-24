@@ -1,6 +1,7 @@
-classdef XPAccumulator < ebe.core.ResultsAccumulator
+classdef XPPlatformAccumulator < ebe.core.ResultsAccumulator
 
-    % This accumulator stores the results and errors for localization problems 
+    % This accumulator stores the results for the platform for a SLAM
+    % problem
 
     properties(GetAccess = public, SetAccess = protected)
 
@@ -29,7 +30,6 @@ classdef XPAccumulator < ebe.core.ResultsAccumulator
 
         end
 
-
         function collectResults(obj)
 
             if (isempty(obj.timeStore) == true)
@@ -45,7 +45,7 @@ classdef XPAccumulator < ebe.core.ResultsAccumulator
             end
 
             for e = 1 : numel(obj.estimators)
-                [x, P] = obj.estimators{e}.computeXP();
+                [x, P] = obj.estimators{e}.platformEstimate();
                 if (isempty(obj.xEstStore{e}))
                     obj.xEstStore{e} = x;
                     obj.PEstStore{e} = diag(P);

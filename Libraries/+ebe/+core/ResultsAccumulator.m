@@ -1,5 +1,8 @@
 classdef ResultsAccumulator < ebe.core.Component
 
+    % This class is called once per step and is used to store information
+    % on the performance of each estimator
+
     properties(Access = protected)
 
         eventGenerator;
