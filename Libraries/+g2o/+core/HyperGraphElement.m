@@ -58,7 +58,7 @@ classdef HyperGraphElement < handle
         
         % Make sure the element is valid. The definition of validity is
         % different for vertices and edges.
-        validate(this);
+        validate(obj);
         
     end
     

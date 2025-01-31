@@ -1,15 +1,9 @@
 classdef Event < handle
-
-    % Event
+    % Event: The class storing the events
     %
-    % This is the base class for all events which propagate data
-    %
-    % Properties:
-    %   time - The time of the event real number
-    %   type - A string which specifies the event type
-    %   data - The data (optional) typically this will be the
-    %          numerical value of the observation
-    %   covariance - The covariance matrix
+    % ebe is a discrete event-based simulator system. This means everything
+    % happen as a result of events, encoded with time, being sent around.
+    % The event class is used to store the information needed.
 
     properties(GetAccess = public, SetAccess = protected)
         
@@ -30,14 +24,42 @@ classdef Event < handle
     end
 
     properties(Access = public)
-    
         % Simulator timestep number; used for debugging
         eventGeneratorStepNumber;
     end
 
     methods(Access = public)
+
         function obj = Event(time, type, data, covariance, info)
-            
+             % Event Constructor for Event
+            %
+            % Syntax:
+            %   event = Event(time, type)
+            %   event = Event(time, type, data)
+            %   event = Event(time, type, data, covariance)
+            %   event = Event(time, type, data, covariance, info)
+            %
+            % Description:
+            %   Creates an instance of a SystemModel object.
+            %
+            % Inputs:
+            %   config - (struct)
+            %       The configuration structure
+            %   time - (double)
+            %       The time the event is scheduled to fire
+            %   data - (optional, double, can be a vector)
+            %       Typically contains observation data such as z or
+            %       odometry
+            %   covariance - (optional, dsquare matrix)
+            %       The covariance associated with the data
+            %   info - (optional)
+            %       Arbitrary field to contain all other data including
+            %       landmark IDs when dealing with SLAM
+            %
+            % Outputs:
+            %   obj - (handle)
+            %       An instance of an Event
+           
             % Copy over the common values
             obj.time = time;
             obj.type = type;

@@ -46,6 +46,7 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
             obj.registerEventHandler('gps', @obj.handleGPSObservationEvent);
             obj.registerEventHandler('slam', @obj.handleSLAMObservationEvent);
             obj.registerEventHandler('odom', @obj.handleUpdateOdometryEvent);
+            obj.registerEventHandler('bearing', @obj.handleBearingObservationEvent);
 
             % Set the name
             obj.setName('SLAMSystem');
@@ -59,12 +60,7 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
 
             % Set the dictionary which maps landmark ID to coefficient in
             % the state estimate.
-            if (isMATLABReleaseOlderThan('R2023b') == true)
-                obj.landmarkIDStateVectorMap = dictionary();
-                obj.landmarkIDStateVectorMap = insert(obj.landmarkIDStateVectorMap, 0, 0);
-            else
-                obj.landmarkIDStateVectorMap = configureDictionary("uint32", "double");
-            end
+            obj.landmarkIDStateVectorMap = configureDictionary("uint32", "double");
 
             % Get the map data
             if (isfield(obj.config, 'map'))
@@ -132,8 +128,28 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
 
         function success = handlePredictForwards(obj, dT)
 
-            [obj.x, F, Q] = obj.systemModel.predictState(obj.x, obj.u, dT);
-            obj.P = F * obj.P * F' + Q;
+            NP = l2.dotbot.SystemModel.NP;
+
+            [obj.x(1:NP), FXd, QXd] = obj.systemModel.predictState(obj.x(1:NP), obj.u, dT);
+
+            % This is an inefficient way to do it:
+            %
+            % FS = eye(numel(obj.x));
+            % FS(1:NP, 1:NP) = FXd;
+            % QS = eye(numel(obj.x));
+            % QS(1:NP,1:NP) = QXd;
+            % obj.P = FS * obj.P * FS' + QS
+            %
+            % The more efficient approach is exploit the structure of FS
+            % and QS and expand by hand
+
+            % Multiply the top left block for the platform state
+            obj.P(1:NP,1:NP) = FXd * obj.P(1:NP, 1:NP) * FXd' + QXd;
+
+            % Do the platform landmark-prediction blocks
+            obj.P(1:NP, NP+1:end) = FXd * obj.P(1:NP, NP+1:end);
+            obj.P(NP+1:end, 1:NP) = obj.P(1:NP, NP+1:end)';
+
             success = true;
         end
 
@@ -145,11 +161,16 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
         end
 
         function success = handleGPSObservationEvent(obj, event)
-            [zPred, H, R] = obj.systemModel.predictGPSObservation(obj.x);
+            [zPred, Hx, R] = obj.systemModel.predictGPSObservation(obj.x(1:l2.dotbot.SystemModel.NP));
 
+            % Expand to the full state
+            HS = zeros(2, numel(obj.x));
+            HS(:, 1:l2.dotbot.SystemModel.NP) = Hx;
+
+            % Kalman Filter Update
             nu = event.data - zPred;
-            C = obj.P * H';
-            S = H * C + R;
+            C = obj.P * HS';
+            S = HS * C + R;
             W = C / S;
             obj.x = obj.x + W * nu;
             obj.P = obj.P - W * S * W';
@@ -164,13 +185,17 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
             % Update each measurement separately
             for s = 1 : numel(event.info)
                 sensor = obj.map.sensors.bearing.sensors(event.info(s));
-                [zPred, H, R] = obj.systemModel.predictBearingObservation(x, sensor.position, sensor.orientation);
+                [zPred, Hx, R] = obj.systemModel.predictBearingObservation(x(1:l2.dotbot.SystemModel.NP), sensor.position, sensor.orientation);
 
-                % Put code down here to complete the implementation of the KF
+                % Expand to full state
+                HS = zeros(1, numel(obj.x));
+                HS(:, 1:l2.dotbot.SystemModel.NP) = Hx;
+                
+                % Kalman Filter Update
                 nu = event.data(s) - zPred;
                 nu = atan2(sin(nu), cos(nu));
-                C = P * H';
-                S = H * C + R;
+                C = P * HS';
+                S = HS * C + R;
                 W = C / S;
                 x = x + W * nu;
                 P = P - W * S * W';
@@ -184,6 +209,10 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
         function handleSLAMObservationEvent(obj, event)
             assert(obj.stepNumber == event.eventGeneratorStepNumber)
 
+            % Store useful values
+            NL = l2.dotbot.SystemModel.NL;
+            NP = l2.dotbot.SystemModel.NP;
+
             % Get the list of landmarks we know about
             knownLandmarkIDs = obj.landmarkIDStateVectorMap.keys();
 
@@ -192,37 +221,65 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
 
             % First update with the known landmarks
 
-            % ACTIVITY 3
             for o = 1 : numel(existingLandmarks)
-                % ADD FOR TASK 3
 
-                % Uncomment these lines to find the index of existing
-                % landmarks in the state vector
-                %offset = lookup(obj.landmarkIDStateVectorMap, existingLandmarks(o));
-                %landmarkIdx = offset + [1;2];
+                % The following two lines look up, for each known landmark,
+                % what the index of that landmark state is in the state
+                % vector
+                offset = lookup(obj.landmarkIDStateVectorMap, existingLandmarks(o));
+                landmarkIdx = offset + (1:NL);
 
-                % Finish implementing activity 3 here.
+                % Call the observation model; this returns the predicted
+                % observations together with the H matrices for the
+                % platform and the landmark
+                [zPred, Hx, Hm, ~] = ...
+                    obj.systemModel.predictSLAMObservation(obj.x(1:NP), ...
+                    obj.x(landmarkIdx));
+
+                % ACTIVITY 3:
+                %
+                % Create the SLAM system observation matrix HS which
+                % has to be of the right size and composition to update the
+                % landmark and platform.
+
+                % Use HS to implement the Kalman filter update for the SLAM
+                % system
             end
 
             % The remaining observations are of new landmarks
             [newLandmarks, idx] = setdiff(event.info, existingLandmarks);
 
-            % ACTIVITY 2
-
             for o = 1 : numel(newLandmarks)
 
-                % Uncomment these lines to store the index of the state
-                % vector with the landmark ID
+                % The following three lines are used to update the "book
+                % keeping" in the SLAM system to tie landmark IDs with
+                % their position the state vector. This code is currently
+                % commented out (so the code will run). However, you MUST
+                % uncomment it when you are implementing your solution to
+                % activity 3, otherwise the code will not work properly.
+                % Note that landmarkIdx is the index in the state vector
+                % where the new landmark will be inserted.
+
                 %offset = length(obj.x);
-                %landmarkIdx = offset + [1;2];
+                %landmarkIdx = offset + (1:l2.dotbot.SystemModel.NL);
                 %obj.landmarkIDStateVectorMap = insert(obj.landmarkIDStateVectorMap, newLandmarks(o), offset);
 
-                % Finish implementing activity 2 here
+                % ACTIVITY 2: Insert here the correct code to compute the J
+                % and K matrices needed to augment the state with the
+                % landmark. Check the slides on the augmentation operation
+                % and the appendix of the coursework for the appropriate
+                % expressions.
+
+                %obj.x = J * obj.x + K * event.data(:, idx(o));
+                %obj.P = J * obj.P * J' + K * event.covariance() * K';
             end
 
             % ACTIVITY 4
             if (obj.muckUp == true)
-                % Finish implementing activity 4 here
+                for k = 1 : 2 : length(obj.P)
+                    obj.P(k:k+1, 1:k-1) = 0;
+                    obj.P(k:k+1, k+2:end) = 0;
+                end
             end
         end
 
@@ -238,6 +295,7 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
             obj.xStore(:, obj.stepNumber + 1) = obj.x(1:l2.dotbot.SystemModel.NP);
             obj.PStore(:, obj.stepNumber + 1) = diag(obj.P(1:l2.dotbot.SystemModel.NP, ...
                 1:l2.dotbot.SystemModel.NP));
+
         end
     end
 end

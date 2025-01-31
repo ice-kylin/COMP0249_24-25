@@ -180,10 +180,10 @@ classdef Simulator < ebe.core.EventBasedSimulator
                 z = zeros(1, nz);
                 for s = 1 : nz
                     sensor = obj.map.sensors.bearing.sensors(sensorIDs(s));
-                    z(s) = obj.systemModel.predictBearingObservation(obj.x, sensor.position, sensor.orientation);
+                    [z(s), R] = obj.systemModel.predictBearingObservation(obj.x, sensor.position, sensor.orientation);
                 end
                 event = ebe.core.Event(obj.currentTime, 'bearing', z, ...
-                    obj.config.map.sensors.bearing.sigmaR, sensorIDs); 
+                    R, sensorIDs); 
             end
             event.eventGeneratorStepNumber = obj.stepNumber;
 
@@ -200,7 +200,7 @@ classdef Simulator < ebe.core.EventBasedSimulator
                 event = ebe.core.Event(obj.currentTime, 'null_obs');
             else
                 % Generate the observation
-                [z, ~, R] = obj.systemModel.predictGPSObservation(obj.x);
+                [z, R] = obj.systemModel.predictGPSObservation(obj.x);
 
                 % Post the event
                 event = ebe.core.Event(obj.currentTime, 'gps', z, R);
@@ -228,7 +228,7 @@ classdef Simulator < ebe.core.EventBasedSimulator
             else
                 numLandmarks = length(landmarkIDs);
                 z = zeros(2, numLandmarks);
-                [z(:, 1), ~ , ~, R] = obj.systemModel.predictSLAMObservation(obj.x, obj.landmarks(:, landmarkIDs(1)));
+                [z(:, 1), R] = obj.systemModel.predictSLAMObservation(obj.x, obj.landmarks(:, landmarkIDs(1)));
                 for l  = 2 : numLandmarks
                     z(:, l) = obj.systemModel.predictSLAMObservation(obj.x, obj.landmarks(:, landmarkIDs(l)));
                 end

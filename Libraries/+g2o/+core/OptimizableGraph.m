@@ -94,11 +94,11 @@ classdef OptimizableGraph < g2o.core.HyperGraph
         % Get the chi2 value for the overall graph. This is the cost.
         % If specified, also return a list of each chi2 value for each edge
         % separately.
-        function [chi2Sum, chi2List] = chi2(this)
+        function [chi2Sum, chi2List] = chi2(obj)
             
             chi2Sum = 0;
 
-            edgesToCheck = values(this.edgesMap);
+            edgesToCheck = values(obj.edgesMap);
             numberOfEdges = length(edgesToCheck);
 
             if (nargout == 2)

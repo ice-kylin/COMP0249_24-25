@@ -38,12 +38,20 @@ classdef GaussNewtonOptimizationAlgorithm < g2o.core.OptimizationAlgorithm
             while ((numberOfIterations < maximumNumberOfIterations))
                 numberOfIterations = numberOfIterations + 1;
                 
-                fprintf('Iteration = %03d; Residual = %6.3f; Time = %3.3f\n', ...
-                    numberOfIterations, R0, toc); 
-                
                 % Compute the problem
                 [H,b] = obj.optimizableGraph.computeHB(X);
-                
+                        
+                % If this is the first iteration, print some diagnostic
+                % output on the graph sparsity structure
+                if (numberOfIterations == 1)
+                    numNonZeroTerms = nnz(H);
+                    fprintf('Number of non-zero elements in the Hessian %d\n', numNonZeroTerms);
+                    fprintf('Estimated density %3.2f%%\n', 100 * numNonZeroTerms / length(X)^2)
+                end
+
+                fprintf('Iteration = %03d; Residual = %6.3f; Time = %3.3f\n', ...
+                    numberOfIterations, R0, toc); 
+
                 % Work out the update step
                 dX = H\b;
                 

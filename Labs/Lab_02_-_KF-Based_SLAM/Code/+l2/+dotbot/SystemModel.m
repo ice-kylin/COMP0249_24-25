@@ -11,19 +11,19 @@ classdef SystemModel < handle
 
     properties(GetAccess = public)
 
-        % Continuous time process model
-        Fc;
-        Fd;
-        Bc;
-        Bd;
+        % Continuous time process model for the platform state
+        FXc;
+        FXd;
+        BXc;
+        BXd;
 
-        % Continuous time process noise model
-        Qc;
-        Qd;
-        QdSqrtm;
+        % Continuous time process noise model for the platform state
+        QXc;
+        QXd;
+        QXdSqrtm;
 
-        % Observation model
-        HGPS;
+        % Observation model for the platform state
+        HXGPS;
 
         % GPS
         RGPS;
@@ -62,55 +62,48 @@ classdef SystemModel < handle
             obj.cachedDT = NaN;
         end
 
-        function [x, F, Q] = predictState(obj, x, u, dT)
+        function [x, FXd, QXd] = predictState(obj, x, u, dT)
 
-            % obj.Fd = [1 0;0 1];
-            % obj.Bd = [dT 0;0 dT];
-            % obj.Qd = obj.config.platform.sigmaQ^2 * dT^2/2;
-            % 
             if (dT ~= obj.cachedDT)
-                [obj.Fd, obj.Qd, obj.Bd] = ebe.utils.continuousToDiscrete(obj.Fc, ...
-                    obj.Qc, obj.Bc, dT);
+                [obj.FXd, obj.QXd, obj.BXd] = ebe.utils.continuousToDiscrete(obj.FXc, ...
+                    obj.QXc, obj.BXc, dT);
                 if (obj.perturbWithNoise == true)
-                    obj.QdSqrtm = sqrtm(obj.Qd);
+                    obj.QXdSqrtm = sqrtm(obj.QXd);
                 end
                 obj.cachedDT = dT;
             end
 
             pIdx = 1:l2.dotbot.SystemModel.NP;
-            x(pIdx) = obj.Fd * x(pIdx) + obj.Bd * u;
+            x(pIdx) = obj.FXd * x(pIdx) + obj.BXd * u;
 
             if (obj.perturbWithNoise == true)
-                x(pIdx) = x(pIdx) + obj.QdSqrtm * randn(l2.dotbot.SystemModel.NP, 1);
+                x(pIdx) = x(pIdx) + obj.QXdSqrtm * randn(l2.dotbot.SystemModel.NP, 1);
             end
 
             if (nargout == 3)
-                F = eye(length(x));
-                F(pIdx, pIdx) = obj.Fd;
-                Q = zeros(length(x));
-                Q(pIdx, pIdx) = obj.Qd;
+                FXd = obj.FXd;
+                QXd = obj.QXd;
             end
         end
 
-        function [z, H, R] = predictGPSObservation(obj, x)
+        function [z, Hx, R] = predictGPSObservation(obj, x)
 
-           z = obj.HGPS * x(1:l2.dotbot.SystemModel.NP);
+           z = obj.HXGPS * x(1:l2.dotbot.SystemModel.NP);
 
             if (obj.perturbWithNoise == true)
                 z = z + obj.RGPSSqrtm * randn(size(z));
             end
 
             if (nargout == 3)
-                H = zeros(2, length(x));
-                H(:, 1:l2.dotbot.SystemModel.NP) = obj.HGPS;
+                Hx = obj.HXGPS;
                 R = obj.RGPS;
             end
         end
 
-        function [z, H, R] = predictBearingObservation(obj, x, sensorXY, sensorTheta)
+        function [z, Hx, R] = predictBearingObservation(obj, x, sensorXY, sensorTheta)
 
             dx = x(1) - sensorXY(1);
-            dy = x(3) - sensorXY(2);
+            dy = x(2) - sensorXY(2);
             z = atan2(dy, dx) - sensorTheta * pi / 180;
 
             if (obj.perturbWithNoise == true)
@@ -121,21 +114,21 @@ classdef SystemModel < handle
 
             if (nargout == 3)
                 d = dx^2 + dy^2;
-                H = [dy/d 0 dx/d 0];
+                Hx(1:1:l2.dotbot.SystemModel.NP) = [dy/d dx/d];
                 R = obj.RBearing;
             end
         end
 
-        function [z, Hp, Hl, R] = predictSLAMObservation(obj, x, lXY)
+        function [z, Hx, Hm, R] = predictSLAMObservation(obj, x, mXY)
 
-            z = lXY - x(1:2);
+            z = mXY - x;
 
             if (obj.perturbWithNoise == true)
                 z = z + obj.RSLAMSqrt * randn(size(z));
             end
             if (nargout == 4)
-                Hp = -eye(2);
-                Hl = eye(2);
+                Hx = -eye(2);
+                Hm = eye(2);
                 R = obj.RSLAM;
             end
 
@@ -148,11 +141,11 @@ classdef SystemModel < handle
         function setupModels(obj)
 
             % Set up the continuous time process model
-            obj.Fc=zeros(2);
+            obj.FXc=zeros(2);
 
-            obj.Qc = eye(2) * obj.config.platform.controller.odomSigma^2;
+            obj.QXc = eye(2) * obj.config.platform.controller.odomSigma^2;
 
-            obj.Bc = [1 0;0 1];
+            obj.BXc = [1 0;0 1];
                         
             if (isfield(obj.config, 'map') == false)
                 return
@@ -164,7 +157,7 @@ classdef SystemModel < handle
 
             % Set up the observation
             if (isfield(obj.config.map.sensors, 'gps'))
-                obj.HGPS = [1 0 0 0;0 0 1 0];
+                obj.HXGPS = eye(2);
                 obj.RGPS = eye(2) * obj.config.map.sensors.gps.sigmaR^2;
     
                 if (obj.perturbWithNoise == true)

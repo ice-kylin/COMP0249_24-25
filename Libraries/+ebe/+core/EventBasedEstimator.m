@@ -1,6 +1,5 @@
 classdef EventBasedEstimator < ebe.core.ConfigurableComponent
-
-    % EventBasedEstimator Base class for the estimator
+    % EventBasedEstimator: Base class for the estimator
     % 
     % This class implements the base class of an event-based estimation
     % system. Modern robotic systems are inherently multi-sensor fusion

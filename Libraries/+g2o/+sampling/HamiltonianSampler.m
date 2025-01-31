@@ -134,7 +134,7 @@ classdef HamiltonianSampler < handle
             deltaH = H0 - H;
             
             % Do the sample rejection step
-            %acceptMove = (this.useRejectionTest == false) || (log(rand(1)) < deltaH);
+            %acceptMove = (obj.useRejectionTest == false) || (log(rand(1)) < deltaH);
             acceptMove = (obj.useRejectionTest == false) || (rand(1) < exp(deltaH));
             
             if (acceptMove == true)

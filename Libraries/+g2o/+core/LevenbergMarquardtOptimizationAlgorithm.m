@@ -49,6 +49,11 @@ classdef LevenbergMarquardtOptimizationAlgorithm < g2o.core.OptimizationAlgorith
             % starting stepsize, H=J'*J, b=J'*ep
             [H, b] = obj.optimizableGraph.computeHB(X);
             
+            % Diagnostic output
+            numNonZeroTerms = nnz(H);
+            fprintf('Number of non-zero elements in the Hessian %d\n', numNonZeroTerms);
+            fprintf('Estimated density %3.2f%%\n', 100 * numNonZeroTerms / length(X)^2);
+
             % If the magnitude of b is too small, return
             if (norm(b, 'inf') < obj.e1)
                 return

@@ -1,25 +1,44 @@
-% This class stores events in an ordered queue. Sorting is based on
-% increasing time value.
-
 classdef OrderedEventQueue < handle
+    % OrderedEventQueue summary of OrderedEventQueue
+    % This class stores a time ordered series of events. These events are
+    % produced by an event generator and consumed by an estimator.
 
     properties(Access = protected)
+        % The list of events
         eventQueue;
-        dirty;
+
+        % A flag to indicate whether the list needs to be sorted.
+        dirty; 
     end
         
     methods(Access = public)
         
         function obj = OrderedEventQueue()
+            % OrderedEventQueue Constructor for OrderedEventQueue
+            %
+            % Syntax:
+            %   obj = OrderedEventQueue()
+            %
+            % Description:
+            %   Creates an instance of a OrderedEventQueue object.
+            %
+            % Outputs:
+            %   obj - An instance of OrderedEventQueue
+
+            % Construct an empty queue
+
             obj.clear();
         end
         
         function clear(obj)
+            % Remove all pending times and events.
+
             obj.eventQueue = {};
             obj.dirty = false;
         end
         
         function insert(obj, newEvents)
+            % Store the event.
 
             % Flag as dirty
             obj.dirty = true;
@@ -37,6 +56,8 @@ classdef OrderedEventQueue < handle
         end
         
         function sortedEvents = events(obj)
+            % Return the list of sorted events.
+
             if (obj.dirty == true)
                 times = cellfun(@(e) e.time, obj.eventQueue);
                 [~, idx] = sort(times, 'ascend');

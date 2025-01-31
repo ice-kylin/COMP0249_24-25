@@ -216,8 +216,8 @@ classdef HyperGraph < handle
 
          % Destructor to clean the graph up
          function delete(obj)
-            this.verticesMap = {};
-            this.edgesMap = {};
+            obj.verticesMap = {};
+            obj.edgesMap = {};
          end
 
     end

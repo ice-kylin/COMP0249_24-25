@@ -61,8 +61,8 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
         end
         
         % Return the optimization algorithm
-        function algorithm = algorithm(this)
-            algorithm = this.optimizationAlgorithm;
+        function algorithm = algorithm(obj)
+            algorithm = obj.optimizationAlgorithm;
         end
         
         % This method computes the marginals for the specified verties. By
@@ -239,7 +239,7 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
             
             % Check dimensions are the same
             assert(length(obj.X) == length(X), 'g2osparseoptimizer:assignxtovertices:xinconsistent', ...
-                'The dimensions of X are inconsistent; length(this.X)=%d, length(X)=%d', ...
+                'The dimensions of X are inconsistent; length(obj.X)=%d, length(X)=%d', ...
                 length(obj.X), length(X));
 
             % Iterate over all the vertices and assign the values to the
@@ -261,11 +261,11 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
             
             % Check dimensions are the same
             assert(length(obj.X) == length(X), 'g2osparseoptimizer:assignxtovertices:xinconsistent', ...
-                'The dimensions of X are inconsistent; length(this.X)=%d, length(X)=%d', ...
+                'The dimensions of X are inconsistent; length(obj.X)=%d, length(X)=%d', ...
                 length(obj.X), length(X));
             
             assert(length(obj.X) == length(dX), 'g2osparseoptimizer:assignxtovertices:xinconsistent', ...
-                'The dimensions of X and dX are inconsistent; length(this.X)=%d, length(dX)=%d', ...
+                'The dimensions of X and dX are inconsistent; length(obj.X)=%d, length(dX)=%d', ...
                 length(obj.X), length(dX));
             
             % Cheesy way to initialise the output vector to the right size
@@ -310,9 +310,6 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
                     end
                 end
             end
-            % Estimated statistics; actually not very accurate
-            %fprintf('Estimated number of non zero elements (d=%d,u=%d)\n', nzd, nzu);
-            %fprintf('Estimated density %3.2f%%\n', 100 * (nzd + 2 * nzu) / length(this.X)^2);
             obj.nonZeroElementsHXD = nzd;
             obj.nonZeroElementsHXU = nzu;
         end            

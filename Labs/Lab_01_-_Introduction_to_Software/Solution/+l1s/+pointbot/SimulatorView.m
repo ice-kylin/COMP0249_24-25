@@ -81,7 +81,8 @@ classdef SimulatorView < ebe.graphics.EventGeneratorView
                 occluder = gps.occluders(i);
                 obj.occluderGeometry{i}=rectangle('Position', [occluder.x_min, occluder.y_min, ...
                     occluder.x_max - occluder.x_min, occluder.y_max - occluder.y_min], ...
-                    'EdgeColor', 'k', 'FaceColor', [0.8, 0.8, 0.8, 0.7], 'LineWidth', 2);
+                    'EdgeColor', 'k', 'FaceColor', [0.8, 0.8, 0.8, 0.5], 'LineWidth', 2);
+%                    'EdgeColor', 'k', 'FaceColor', [0.8, 0.8, 0.8], 'FaceAlpha', 0.5, 'LineWidth', 2);
             end
         end
 
