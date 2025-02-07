@@ -10,6 +10,10 @@ classdef OptimizableGraph < g2o.core.HyperGraph
         % Flag shows if initialization is required
         initializationRequired;
         
+        % Flag shows if the optimizer has been reinitialized since the last
+        % solve call
+        optimizationReinitialized;
+
         % The state vector
         X;
         
@@ -36,6 +40,10 @@ classdef OptimizableGraph < g2o.core.HyperGraph
             % Flag initialization required
             obj.initializationRequired = true;
             
+        end
+
+        function initializationRequired = isInitializationRequired(obj)
+            initializationRequired = obj.initializationRequired;
         end
  
         function obj = removeVertex(obj, vertex)
@@ -75,6 +83,7 @@ classdef OptimizableGraph < g2o.core.HyperGraph
             obj.buildStructure();
             obj.computeInitialErrors();
             obj.initializationRequired = false;
+            obj.optimizationReinitialized = true;
         end
         
         function numIterations = optimize(obj, maximumNumberOfIterations)
@@ -87,8 +96,11 @@ classdef OptimizableGraph < g2o.core.HyperGraph
             if (nargin == 1)
                 maximumNumberOfIterations = 50;
             end
-            
+
             numIterations = obj.runOptimization(maximumNumberOfIterations);
+
+            % Now clear the reinitialized flag
+            obj.optimizationReinitialized = false;
         end
     
         % Get the chi2 value for the overall graph. This is the cost.
@@ -113,6 +125,10 @@ classdef OptimizableGraph < g2o.core.HyperGraph
                     chi2List(e) = chi2Value;
                 end                
             end            
+        end
+
+        function X = getX(obj)
+            X = obj.X;
         end
     end
     

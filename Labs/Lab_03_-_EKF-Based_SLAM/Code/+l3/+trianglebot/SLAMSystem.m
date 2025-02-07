@@ -1,4 +1,7 @@
 classdef SLAMSystem < ebe.slam.SLAMSystem
+    % SLAMSystem summary of SLAMSystem
+    %
+    % The SLAMSystem implements SLAM for the trianglebot using EKF-SLAM.
 
     properties(Access = protected)
 
@@ -7,6 +10,9 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
         % view it's easier just to store the one set
         x;
         P;
+
+        % The most recent version of the odometry together with its
+        % measurement covariance
         u;
         sigmaU;
 
@@ -31,6 +37,23 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
     methods(Access = public)
 
         function obj = SLAMSystem(config)
+            % SLAMSystem Constructor for SLAMSystem
+            %
+            % Syntax:
+            %   slamSystem = SLAMSystem(config)
+            %
+            % Description:
+            %   Creates an instance of a SLAMSystem object. The system model
+            %   and is constructed at this time and a first set of event
+            %   handlers are scheduled.
+            %
+            % Inputs:
+            %   config - (struct)
+            %       The configuration structure
+            %
+            % Outputs:
+            %   slamSystem - (handle)
+            %       An instance of a SLAMSystem
 
             % Call base class
             obj@ebe.slam.SLAMSystem(config);
@@ -54,10 +77,35 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
         end
 
         function setUpdateKnownLandmarks(obj, updateKnownLandmarks)
+            % SETUPDATEKNOWNLANDMARKS Set the flag to determine if known
+            % landmarks should be updated
+            %
+            % Syntax:
+            %   simulator.setUpdateKnownLandmarks(updateKnownLandmarks)
+            %
+            % Description:
+            %   In this lab, some of the activities involve looking at the
+            %   initialization step only. To do this, the update of known
+            %   landmarks must be skipped. By default, known landmarks are
+            %   updated.
+            %
+            % Inputs:
+            %   updateKnownLandmarks - (bool)
+            %       If false, known landmarks will not be updated.
+
             obj.updateKnownLandmarks = updateKnownLandmarks;
         end
 
         function success = start(obj)
+            % START Start the SLAM system
+            %
+            % Syntax:
+            %   slamSystem.start()
+            %
+            % Description:
+            %   Start the simulator. This includes clearing any results
+            %   history and any map.
+
             start@ebe.slam.SLAMSystem(obj);
 
             % Set up initial store of results
@@ -77,7 +125,6 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
             success = true;
         end
 
-        % Return the current platform estimate
         function [x,P] = platformEstimate(obj)
             x = obj.x(1:l3.trianglebot.SystemModel.NP);
             P = obj.P(1:l3.trianglebot.SystemModel.NP, 1:l3.trianglebot.SystemModel.NP);
@@ -89,57 +136,106 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
             PX = obj.PStore;
         end
         
-        function [x, P, landmarkIds] = landmarkEstimates(obj)
+        function [m, Pmm, landmarkIds] = landmarkEstimates(obj)
+            % LANDMARKESTIMATES Return the current mean and covariance of
+            % each landmark estimate.
+            %
+            % Syntax:
+            %   [m, Pmm, landmarkIds] = slamSystem.platformEstimate()
+            %
+            % Description:
+            %   Return the current estimates of the landmarks and the IDs.
+            %   The landmark covariances are just the blocks on the
+            %   diagonals. The full landmark covariance block is not
+            %   returned.
+            %
+            %   At a given time, there are Nk landmarks. The dimension of
+            %   each landmark is 2
+            %
+            % Outputs:
+            %   m - (2xN_k vector)
+            %       A column vector which contains the estimated mean of
+            %       each landmark position.
+            %   PX - (2x2xN_k double psd matrix)
+            %       A three dimensional matrix which stores the landmark
+            %       estimates. The covariance of landmark 4, for example,
+            %       is given by P(:,:,4)
 
+            % Get the number of landmarks
             landmarkIds = keys(obj.landmarkIDStateVectorMap);
-
             numberOfLandmarks = numel(landmarkIds);
-           
-            x = NaN(l3.trianglebot.SystemModel.NL, numberOfLandmarks);
-            P = NaN(l3.trianglebot.SystemModel.NL, l3.trianglebot.SystemModel.NL, numberOfLandmarks);
+
+            % Build the mean and covariance matrices and extract
+            m = NaN(l3.trianglebot.SystemModel.NL, numberOfLandmarks);
+            Pmm = NaN(l3.trianglebot.SystemModel.NL, l3.trianglebot.SystemModel.NL, numberOfLandmarks);
             
             for l = 1 : numberOfLandmarks
                 landmarkId = landmarkIds(l);
                 offset = lookup(obj.landmarkIDStateVectorMap, landmarkId);
                 idx = offset + [1;2];
-                x(:, l) = obj.x(idx);
-                P(:, :, l) = obj.P(idx, idx);
+                m(:, l) = obj.x(idx);
+                Pmm(:, :, l) = obj.P(idx, idx);
             end
             
-        end
-
-        function [T, X, PX] = estimateHistory(obj)
-            T = obj.timeStore;
-            X = obj.xStore;
-            PX = obj.PStore;
-        end
-
-        function muckUpCovarianceMatrix(obj, muckUp)
-            obj.muckUp = muckUp;
         end
     end
 
     methods(Access = protected)
 
         function success = handleNoPrediction(obj)
-            obj.x = obj.x;
-            obj.P = obj.P;
+            % HANDLENOPREDICTION Handle the case when no prediction is
+            % needed.
+            %
+            % Syntax:
+            %   slamSystem.handleNoPrediction();
+            %
+            % Description:
+            %   This method is called when the time difference between two
+            %   events is so small that running the time prediction step
+            %   isn't required.
+
             success = true;
         end
 
         function success = handleNoUpdate(obj, ~)
-            obj.x = obj.x;
-            obj.P = obj.P;
+            % HANDLENOUPDATE Handle the case when no update is needed.
+            %
+            % Syntax:
+            %   slamSystem.handleNoPrediction();
+            %
+            % Description:
+            %   This method is called when no update to the SLAM system is
+            %   required. For example, this is the case with heartbeat and
+            %   null_obs events.
+
             success = true;
         end
 
         function success = handlePredictForwards(obj, dT)
+            % HANDLEPREDICTFORWARDS Predict the system state forwards
+            %
+            % Syntax:
+            %   slamSystem.handlePredictForwards(dT);
+            %
+            % Description:
+            %   Predict the system state forward by a time step dT. The
+            %   process model is called with the current platform state
+            %   estimate and odometry value. The estimated state and
+            %   Jacobians are returned. The covariance estimate is updated
+            %   from the Jacobians.
+            %
+            % Inputs:
+            %   dT - (double)
+            %       Length of the prediction step.
 
+            % Convenience value
             NP = l3.trianglebot.SystemModel.NP;
 
+            % Update the platform state
             [obj.x(1:NP), gradFx, gradFv] = obj.systemModel.predictState(obj.x(1:NP), obj.u, dT);
 
-            % Multiply the top left block for the platform state
+            % Update the top left block of the platform state from
+            % gradF*Pxx*gradF'+gradV*Q*gradV'
             obj.P(1:NP,1:NP) = gradFx * obj.P(1:NP, 1:NP) * gradFx' + gradFv * obj.sigmaU * gradFv';
 
             % Do the platform landmark-prediction blocks
@@ -150,6 +246,23 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
         end
 
         function success = handleInitializationEvent(obj, event)
+            % HANDLEINITIALIZATIONEVENT Handle the initialization event.
+            %
+            % Syntax:
+            %   slamSystem.handleInitializationEvent(event);
+            %
+            % Description:
+            %   Handle the initialization event. data is assumed to be x0,
+            %   and covariance P0. The initialized flag is also set to true
+            %   to enable the estimator to run in full mode.
+            %
+            % Inputs:
+            %   event - (ebe.core.Event)
+            %       The intialization event.
+            %
+            % See Also:
+            %   SIMULATOR
+
             obj.x = event.data;
             obj.P = event.covariance;
             obj.initialized = true;
@@ -157,7 +270,25 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
         end
 
         % Handle a set of measurements of landmarks
-        function handleSLAMObservationEvent(obj, event)
+        function success = handleSLAMObservationEvent(obj, event)
+            % HANDLESLAMOBSERVATIONEVENT Handle the SLAM observation event.
+            %
+            % Syntax:
+            %   slamSystem.handleSLAMObservationEvent(event);
+            %
+            % Description:
+            %   Handle SLAM observations. This follows the code in the
+            %   lectures: any known landmarks are updated first. Unknown
+            %   landmarks are augmented at the end. Each landmark is
+            %   processed individually rather than batching them together.
+            %
+            % Inputs:
+            %   event - (ebe.core.Event)
+            %       The SLAM observation event.
+            %
+            % See Also:
+            %   SIMULATOR
+            
             assert(obj.stepNumber == event.eventGeneratorStepNumber)
 
             % Store useful values
@@ -167,39 +298,56 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
             % Get the list of landmarks we know about
             knownLandmarkIDs = obj.landmarkIDStateVectorMap.keys();
 
-            % Find the set of known landmarks in the observation set; note
-            % this can be disabled for some activities
+            % Find the intersection of the observed landmarks and the ones
+            % known in the map; this produces a list of known landmarks
+            % which have been observed this time.
             [existingLandmarks, idx] = intersect(event.info, knownLandmarkIDs);
 
+            % If updating landmarks is disabled, we clear the index of
+            % known landmarks. This is an easy way to cause the next block
+            % to be skipped
             if (obj.updateKnownLandmarks == false)
                 idx = [];
             end
 
+            % Update all the known landmarks
             for o = 1 : numel(idx)
                 % Look up the landmark and figure out its position
                 offset = lookup(obj.landmarkIDStateVectorMap, existingLandmarks(o));
                 landmarkIdx = offset + (1:NL);
 
-                % Comput the prediction and Jacobian
+                % Predicted observation and Jacobians
                 [zPred, gradHx, gradHm, gradHw] = ...
                     obj.systemModel.predictSLAMObservation(obj.x(1:NP), ...
                     obj.x(landmarkIdx));
-                HS = zeros(2, numel(obj.x));
-                HS(:, 1:NP) = gradHx;
-                HS(:, landmarkIdx) = gradHm;
-                C = obj.P * HS';
-                S = HS * C + gradHw * event.covariance() * gradHw';
+
+                % Work out the innovation, including angle wrapping
                 nu = event.data(:, idx(o)) - zPred;
                 nu(2) = atan2(sin(nu(2)), cos(nu(2)));
 
-                K = C / S;
+                % Assemble the observation matrix
+                HS = zeros(2, numel(obj.x));
+                HS(:, 1:NP) = gradHx;
+                HS(:, landmarkIdx) = gradHm;
 
+                % Kalman filter update steps
+                C = obj.P * HS';
+                S = HS * C + gradHw * event.covariance() * gradHw';
+                K = C / S;
                 obj.x = obj.x + K * nu;
                 obj.P = obj.P - K * S * K';
+
+                % Wrap the heading estimate
+                obj.x(3) = atan2(sin(obj.x(3)), cos(obj.x(3)));
+
             end
 
-            % The remaining observations are of new landmarks
+            % Find the mutual complement  of the observed landmarks and the
+            % ones known in the map; this produces a list of new landmarks
+            % which have not been seen before.
             [newLandmarks, idx] = setdiff(event.info, existingLandmarks);
+
+            % Augment all the known landmarks
             for o = 1 : numel(newLandmarks)
 
                 % Figure out the index for the new state estimate and
@@ -230,79 +378,161 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
                 % Copy over tranposed version
                 obj.P(1:end-NL,landmarkIdx) = obj.P(landmarkIdx, 1:end-NL)';
             end
+            
+            success = true;
         end
 
         function success = handleGPSObservationEvent(obj, event)
+            % HANDLEGPSOBSERVATIONEVENT Handle the GPS observation event.
+            %
+            % Syntax:
+            %   slamSystem.handleGPSObservationEvent(event);
+            %
+            % Description:
+            %   Handle the GPS observation.
+            %
+            % Inputs:
+            %   event - (ebe.core.Event)
+            %       The GPS observation event.
+            %
+            % See Also:
+            %   SIMULATOR
 
+            % Predicted observation and Jacobians
             [zPred, gradHx, gradHw] = ...
                 obj.systemModel.predictGPSObservation(obj.x(1:2));
 
-            % Expand to the full stateg
+            % Compute the innovation
+            nu = event.data - zPred;
+
+            % Assemble the observation matrix
             HS = zeros(2, numel(obj.x));
             HS(:, 1:l3.trianglebot.SystemModel.NP) = gradHx;
 
             % Kalman Filter Update
-            nu = event.data - zPred;
             C = obj.P * HS';
             S = HS * C + gradHw * event.covariance() * gradHw';
             W = C / S;
             obj.x = obj.x + W * nu;
             obj.P = obj.P - W * S * W';
+
+            % Wrap the heading estimate
+            obj.x(3) = atan2(sin(obj.x(3)), cos(obj.x(3)));
+
             success = true;
         end
 
         function success = handleCompassObservationEvent(obj, event)
+            % HANDLECOMPASSOBSERVATIONEVENT Handle the compass observation event.
+            %
+            % Syntax:
+            %   slamSystem.handleCompassObservationEvent(event);
+            %
+            % Description:
+            %   Handle the compass observation.
+            %
+            % Inputs:
+            %   event - (ebe.core.Event)
+            %       The compass observation event.
+            %
+            % See Also:
+            %   SIMULATOR
 
+            % Predicted observation and Jacobians
             [zPred, gradHx, gradHw] = ...
                 obj.systemModel.predictCompassObservation(obj.x(1:l3.trianglebot.SystemModel.NP));
+
+            % Compute the innovation
+            nu = event.data - zPred;
+            nu = atan2(sin(nu), cos(nu));
 
             % Expand to the full state
             HS = zeros(1, numel(obj.x));
             HS(:, 1:l3.trianglebot.SystemModel.NP) = gradHx;
 
             % Kalman Filter Update
-            nu = event.data - zPred;
-            nu = atan2(sin(nu), cos(nu));
             C = obj.P * HS';
             S = HS * C + gradHw * event.covariance() * gradHw';
             W = C / S;
             obj.x = obj.x + W * nu;
             obj.P = obj.P - W * S * W';
+
+            % Wrap the heading estimate
+            obj.x(3) = atan2(sin(obj.x(3)), cos(obj.x(3)));
+
             success = true;
         end
 
 
         function success = handleBearingObservationEvent(obj, event)
-
-            x = obj.x;
-            P = obj.P;
+            % HANDLEBEARINGOBSERVATIONEVENT Handle the bearing observation event.
+            %
+            % Syntax:
+            %   slamSystem.handleBearingObservationEvent(event);
+            %
+            % Description:
+            %   Handle the bearing observation event. For each observation,
+            %   we extract the sensor ID and from that work out the bearing
+            %   sensor position and orientation. This is then used to carry
+            %   out the update.
+            %
+            % Inputs:
+            %   event - (ebe.core.Event)
+            %       The bearing observation event.
+            %
+            % See Also:
+            %   SIMULATOR
 
             % Update each measurement separately
             for s = 1 : numel(event.info)
+
+                % Predicted observation and Jacobians
                 sensor = obj.map.sensors.bearing.sensors(event.info(s));
                 [zPred, gradHx, gradHw] = ...
-                obj.systemModel.predictBearingObservation(x(1:2), ...
+                obj.systemModel.predictBearingObservation(obj.x(1:2), ...
                     sensor.position, sensor.orientation);
+
+                % Compute the innovation
+                nu = event.data(s) - zPred;
+                nu = atan2(sin(nu), cos(nu));
 
                 % Expand to full state
                 HS = zeros(1, numel(obj.x));
                 HS(:, 1:l2s.trianglebot.SystemModel.NP) = gradHx;
                 
                 % Kalman Filter Update
-                nu = event.data(s) - zPred;
-                nu = atan2(sin(nu), cos(nu));
-                C = P * HS';
+                C = obj.P * HS';
                 S = HS * C + gradHw * event.covariance() * gradHw';
                 W = C / S;
-                x = x + W * nu;
-                P = P - W * S * W';
+                obj.x = obj.x + W * nu;
+                obj.P = obj.P - W * S * W';
+
+                % Wrap the heading estimate
+                obj.x(3) = atan2(sin(obj.x(3)), cos(obj.x(3)));
             end
-            obj.x = x;
-            obj.P = P;
+
             success = true;
         end
 
         function success = handleUpdateOdometryEvent(obj, event)
+            % HANDLEUPDATEODOMETRYEVENT Handle receving new odometry
+            % information.
+            %
+            % Syntax:
+            %   slamSystem.handleUpdateOdometryEvent(event);
+            %
+            % Description:
+            %   Handle the odometry event. The internal value of odometry
+            %   is updated to the value in the event. The odometry is held
+            %   constant until the next handle event is received.
+            %
+            % Inputs:
+            %   event - (ebe.core.Event)
+            %       The odometry event.
+            %
+            % See Also:
+            %   SIMULATOR
+
                 assert(obj.stepNumber == event.eventGeneratorStepNumber);
                 obj.u = event.data;
                 obj.sigmaU = event.covariance;
@@ -315,7 +545,6 @@ classdef SLAMSystem < ebe.slam.SLAMSystem
             obj.xStore(:, obj.stepNumber + 1) = obj.x(1:l3.trianglebot.SystemModel.NP);
             obj.PStore(:, obj.stepNumber + 1) = diag(obj.P(1:l3.trianglebot.SystemModel.NP, ...
                 1:l3.trianglebot.SystemModel.NP));
-
         end
     end
 end

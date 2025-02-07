@@ -85,6 +85,18 @@ classdef Component < handle
     methods(Access = public, Abstract)
 
         start(obj);
+            % START Start the componenent.
+            %
+            % Syntax:
+            %   obj.start();        
+            %
+            % Description:
+            %   Carries out any procedure for starting the component. Note
+            %   that this implementation is abstract, whereas for the
+            %   related method stop it is not. The reason is that
+            %   non-trivial start operations are required in almost all
+            %   cases but the stop operation is rarely used.
+        
     end
 
 end

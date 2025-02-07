@@ -1,5 +1,6 @@
 classdef MainLoop < ebe.core.ConfigurableComponent
-    % MainLoop: A class which manages the entire loop for an ebe session,
+    % MainLoop summary of MainLoop
+    % A class which manages the entire loop for an ebe session,
     % from starting up estimators and graphics, to running the main loop
     % with the event generator, to shutting the system back down again.
 
@@ -26,8 +27,10 @@ classdef MainLoop < ebe.core.ConfigurableComponent
         % Flag to show if graphics are enabled
         enableGraphics;
 
-        % Flag to show the regularity with which the graphics should be
-        % updated
+        % Timestep between saving results off
+        accumulateResultsUpdatePeriod;
+
+        % Timestep between updating the graphics
         graphicsUpdatePeriod;
 
     end
@@ -48,7 +51,7 @@ classdef MainLoop < ebe.core.ConfigurableComponent
             %       The configuration structure
             %
             % Outputs:
-            %   obj - (handle)
+            %   mainLoop - (handle)
             %      An instance of a MainLoop
 
             % Call the base class constructor
@@ -57,12 +60,12 @@ classdef MainLoop < ebe.core.ConfigurableComponent
             % Clear out all the entries and set defaults
             obj.enableGraphics = true;
             obj.isRunning = false;
-            obj.graphicsUpdatePeriod = 1;
             obj.estimators = {};
             obj.resultsAccumulators = {};
             obj.viewers = {};
             obj.postDrawActions = {};
-
+            obj.graphicsUpdatePeriod = 1;
+            obj.accumulateResultsUpdatePeriod = 1;
         end
 
         function setEventGenerator(obj, eventGenerator)
@@ -135,15 +138,79 @@ classdef MainLoop < ebe.core.ConfigurableComponent
         end
 
         function addViewer(obj, viewer)
+            % ADDVIEWER Add a graphical viewer
+            %
+            % Syntax:
+            %   success = mainLoop.addViewer(viewer)
+            %
+            % Description:
+            %   Add a graphical viewer to the mainloop. A graphical viewer 
+            %
+            % Inputs:
+            %   viewer - (ebe.graphics.Event)
+            %       The event to be processed
+
             obj.viewers{end+1} = viewer;
         end
 
-        function addPostDrawAction(obj, activity)
-            obj.postDrawActions{end+1} = activity;
+        function addPostDrawAction(obj, action)
+            % ADDPOSTDRAWACTION Register a post draw action.
+            %
+            % Syntax:
+            %   mainLoop.addPostDrawAction(action);
+            %
+            % Description:
+            %   Register a post draw action which is called after all the
+            %   other steps in the loop have been completed.
+            %
+            % Inputs:
+            %   action - (ebe.graphics.PostDrawAction)
+            %       The action to be added.
+
+            obj.postDrawActions{end+1} = action;
         end        
 
         function setGraphicsUpdatePeriod(obj, graphicsUpdatePeriod)
+            % SETGRAPHICSUPDATEPERIOD Set the frequency with which the
+            % graphics are updated
+            %
+            % Syntax:
+            %   mainLoop.setGraphicsUpdatePeriod(graphicsUpdatePeriod)
+            %
+            % Description:
+            %   Updating the graphics can be very costly and slow the
+            %   simulation down significantly. This method sets a variable
+            %   which determines the rate at which updates happen.
+            %   Specifically. an update happens if the event count mod the
+            %   graphicsUpdatePeriod is 0.
+            %
+            % Inputs:
+            %   graphicsUpdatePeriod - (int)
+            %       The number of simulator timesteps between updating the
+            %       graphics.
+            
             obj.graphicsUpdatePeriod = graphicsUpdatePeriod;
+        end
+
+        function setAccumulateResultsUpdatePeriod(obj, accumulateResultsUpdatePeriod)
+            % SETACCUMULATEREESULTSUPDATEPERIOD Set the frequency with which the
+            % results (ground truth and estimates) are stored.
+            %
+            % Syntax:
+            %   mainLoop.setAccumulateResultsUpdatePeriod(accumulateResultsUpdatePeriod)
+            %
+            % Description:
+            %   Getting results from some estimators (I'm looking at you
+            %   factor graphs) can take time. Therefore, this method makes
+            %   it posible to modify the frequency with which the results
+            %   accumulator is called.
+            %
+            % Inputs:
+            %   graphicsUpdatePeriod - (int)
+            %       The number of simulator timesteps between updating the
+            %       graphics.
+            
+            obj.accumulateResultsUpdatePeriod = accumulateResultsUpdatePeriod;
         end
 
         function run(obj)
@@ -202,9 +269,11 @@ classdef MainLoop < ebe.core.ConfigurableComponent
                 obj.estimators{e}.processEvents(events);
             end
 
-            % Handle if there are any post step activities
-            for p = 1 : numel(obj.resultsAccumulators)
-                obj.resultsAccumulators{p}.collectResults();
+            % Handle if there are any results accumulators
+            if (rem(obj.eventGenerator.stepCount(), obj.accumulateResultsUpdatePeriod) ==0)
+                for p = 1 : numel(obj.resultsAccumulators)
+                    obj.resultsAccumulators{p}.collectResults();
+                end
             end
 
             % Finish here if graphics is disabled

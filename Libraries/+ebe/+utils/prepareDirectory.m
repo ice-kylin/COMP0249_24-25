@@ -1,4 +1,23 @@
-function prepareDirectory(filePath, cleanDirectoryIfItExists)
+function prepareDirectory(directoryPath, cleanDirectoryIfItExists)
+    % PREPAREDIRECTORY Prepare a directory for writing
+    %
+    % Syntax:
+    %   prepareDirectory(directoryPath);
+    %   prepareDirectory(directoryPath, cleanDirectoryIfItExists);
+    %
+    % Description:
+    %   This function will create a directory hierarchy if it does not
+    %   exist. If the final directory in the hierarchy exists, the contents
+    %   of this can be optionally deleted.
+    %
+    % Inputs:
+    %   directoryPath - (string)
+    %      The directory path to be created. This can be relative or
+    %      absolute to the current directory. Internally, ebe uses absolute
+    %      paths to guarantee file location.
+    %   cleanDirectoryIfItExists - (bool, optional)
+    %      Delete the contents of the final directory in the directory path
+    %      if it exists. [Default: true]
 
     if (nargin == 1)
         cleanDirectoryIfItExists = true;
@@ -6,10 +25,10 @@ function prepareDirectory(filePath, cleanDirectoryIfItExists)
 
     % First convert fileName to have the correct file separation for the
     % platform type
-    filePath = strrep(filePath, '/', filesep);
+    directoryPath = strrep(directoryPath, '/', filesep);
 
     % Extract the directory part of the filepath
-    [dirPath, ~, ~] = fileparts(filePath);
+    [dirPath, ~, ~] = fileparts(directoryPath);
 
     % Check if the directory part is non-empty
     if ~isempty(dirPath)

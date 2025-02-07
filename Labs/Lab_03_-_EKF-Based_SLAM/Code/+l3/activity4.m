@@ -15,13 +15,15 @@ mainLoop = ebe.MainLoop(config);
 simulator = trianglebot.Simulator(config);
 mainLoop.setEventGenerator(simulator);
 
-% Create the SLAM system and register it
+% Create the SLAM system and register it; note that landmark updates are
+% disabled
 slamSystem = trianglebot.SLAMSystem(config);
-
-% Flag to disable updating known landmarks
 slamSystem.setUpdateKnownLandmarks(false);
-
 mainLoop.addEstimator(slamSystem);
+
+% Create the store for estimates
+resultsAccumulator = ebe.slam.XPPlatformAccumulator();
+mainLoop.addResultsAccumulator(resultsAccumulator);
 
 % Set up the figure in which we draw everything
 fig = FigureManager.getFigure("Simulator Output");

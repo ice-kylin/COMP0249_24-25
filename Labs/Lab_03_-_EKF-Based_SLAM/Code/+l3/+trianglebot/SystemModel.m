@@ -406,9 +406,9 @@ classdef SystemModel < handle
             z = atan2(sin(z), cos(z));
 
             if (nargout >= 2)
-                d = dx^2 + dy^2;
-                gradHx = [dy/d dx/d 0];
-                gradHw = eye(2);
+                d2 = dx^2 + dy^2;
+                gradHx = [-dy/d2 dx/d2 0];
+                gradHw = 1;
                 R = obj.RBearing;
             end
         end

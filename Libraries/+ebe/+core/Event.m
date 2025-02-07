@@ -1,25 +1,27 @@
 classdef Event < handle
     % Event: The class storing the events
     %
-    % ebe is a discrete event-based simulator system. This means everything
-    % happen as a result of events, encoded with time, being sent around.
-    % The event class is used to store the information needed.
+    % Instances of this class are fundamental to the operation of ebe. All
+    % main sensing activities - such as initialization and receipt of
+    % sensor measurements - are carried out using data contained in events.
+    % Each event consists of a time, a type, and an optional payload of
+    % data.
 
     properties(GetAccess = public, SetAccess = protected)
         
-        % The time of the event.
+        % The time of the event (required).
         time; 
         
-        % The type of the event.
+        % The type of the event (required).
         type;
         
-        % The event data
+        % The event data (optional)
         data;
         
-        % The noise on the event data
+        % The noise on the event data (optional symmetric PSD matrix)
         covariance;
 
-        % Any additional information
+        % Any additional information (optional)
         info;
     end
 
@@ -31,7 +33,7 @@ classdef Event < handle
     methods(Access = public)
 
         function obj = Event(time, type, data, covariance, info)
-             % Event Constructor for Event
+            % Event Constructor for Event
             %
             % Syntax:
             %   event = Event(time, type)
@@ -40,17 +42,15 @@ classdef Event < handle
             %   event = Event(time, type, data, covariance, info)
             %
             % Description:
-            %   Creates an instance of a SystemModel object.
+            %   Creates an instance of an Event object.
             %
             % Inputs:
-            %   config - (struct)
-            %       The configuration structure
             %   time - (double)
             %       The time the event is scheduled to fire
             %   data - (optional, double, can be a vector)
             %       Typically contains observation data such as z or
             %       odometry
-            %   covariance - (optional, dsquare matrix)
+            %   covariance - (optional, postive semidefinite square matrix)
             %       The covariance associated with the data
             %   info - (optional)
             %       Arbitrary field to contain all other data including

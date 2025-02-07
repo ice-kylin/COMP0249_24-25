@@ -17,8 +17,11 @@ mainLoop.setEventGenerator(simulator);
 
 % Create the SLAM system and register it
 slamSystem = trianglebot.SLAMSystem(config);
-
 mainLoop.addEstimator(slamSystem);
+
+% Create the store for estimates
+resultsAccumulator = ebe.slam.XPPlatformAccumulator();
+mainLoop.addResultsAccumulator(resultsAccumulator);
 
 % Set up the figure in which we draw everything
 fig = FigureManager.getFigure("Simulator Output");

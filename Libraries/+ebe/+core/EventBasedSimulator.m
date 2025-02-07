@@ -1,8 +1,14 @@
-% This class generates a stream of events. It could, for example, run a
-% simulator, or could (eventually) be a wrapper on ROS.
-
 classdef EventBasedSimulator < ebe.core.EventGenerator
-    
+    % EventBasedSimulator summary of EventBasedSimulator
+    %
+    % Components that inherit from this class are discrete time simulators.
+    %
+    % The simulator works by scheduling a series of time-ordered event
+    % generators. When the step() method is called, the simulator
+    % predicts (if the time step is long enough) to the next event
+    % generator time, and then the next event generator is run. Repeat
+    % events schedule themselves.
+
     properties(Access = protected)
 
         % The current time
@@ -28,12 +34,37 @@ classdef EventBasedSimulator < ebe.core.EventGenerator
     
     methods(Access = public)
         
-        % Construct the object
         function obj = EventBasedSimulator(config)
+            % EventBasedSimulator Constructor for EventBasedSimulator
+            %
+            % Syntax:
+            %   eventBasedSimulator = EventBasedSimulator(config)
+            %
+            % Description:
+            %   Constructs an event based simulator using the configuration. Note
+            %   this is an abstract class and cannot be instantiated
+            %   directly.
+            %
+            % Inputs:
+            %   config - (struct)
+            %       The configuration structure
+            %
+            % Outputs:
+            %   obj - (handle)
+            %       An instance of an EventBasedSimulator
+
             obj = obj@ebe.core.EventGenerator(config);
         end
 
         function start(obj)
+            % START Start the event generator
+            %
+            % Syntax:
+            %   eventBasedSimulator.start()
+            %
+            % Description:
+            %   Start the simulator so that it is ready to process the
+            %   first step call.
 
             start@ebe.core.EventGenerator(obj);
 
@@ -61,20 +92,56 @@ classdef EventBasedSimulator < ebe.core.EventGenerator
 
     methods(Access = public, Sealed)
         
-        % Get the current simulation time
         function T = time(obj)
+            % TIME current simulator time
+            %
+            % Syntax:
+            %   time = eventBasedSimulator.time()
+            %
+            % Description:
+            %   Return the current time according to the simulator.
+            %
+            % Outputs:
+            %   time - (double)
+            %       The current event generator time
             T = obj.currentTime;
         end
 
-        % Return whether the simulator has finished
         function carryOn =  keepRunning(obj)
-            carryOn = ((obj.carryOnRunning) && (obj.stepNumber <= obj.config.maximumStepNumber));
+            % KEEPRUNNING return a flag which indicates whether the
+            % simulator should keep running or not.
+            %
+            % Syntax:
+            %   carryOn = eventBasedSimulator.keepRunning()
+            %
+            % Description:
+            %   The carryOn flag indicates if the simulator should be
+            %   stepped again or not. It returns false if the simulation
+            %   has met the maximum specified number of timesteps or some
+            %   other condition has been met.
+            %
+            % Outputs:
+            %   carryOn - (bool)
+            %       True if the event generator is good to be stepped
+            %       again.
+
+            carryOn = ((obj.carryOnRunning) && ...
+                (obj.stepNumber <= obj.config.maximumStepNumber));
         end
 
         function step(obj)
+            % STEP Step the simulator a single iteration
+            %
+            % Syntax:
+            %   eventBasedSimulator.step()
+            %
+            % Description:
+            %   The simulator predicts to the time that the next event
+            %   generator will fire and any events are collected. If
+            %   the event were previously requested by the events() method,
+            %   the outgoing event queue is cleared. If the events have not
+            %   been requested, the new events are posted to the queue.
 
-            % Clear the event queue if the events() method was called
-            % at least once before calling step().
             if (obj.outgoingEventsDispatched == true)
                 obj.outgoingEvents.clear();
             end
@@ -149,9 +216,22 @@ classdef EventBasedSimulator < ebe.core.EventGenerator
 
     methods(Access = protected, Abstract)
 
-
-        % This handles the case that we predict to a given time
         handlePredictForwards(obj, dT, T);
+            % HANDLEPREDICTFORWARDS Carry out the time update for the
+            % simulator
+            %
+            % Syntax:
+            %   eventBasedSimulator.handlePredictForwards(dT, T)
+            %
+            % Description:
+            %   This runs the dynamic model to estimate the state of the
+            %   platform / system at the net timestep.
+            %
+            % Inputs:
+            %   dT - (double)
+            %       Length of the prediction step
+            %   T - (double)
+            %       The simulator time that's being predicted to
 
         storeStepResults(obj);
     end

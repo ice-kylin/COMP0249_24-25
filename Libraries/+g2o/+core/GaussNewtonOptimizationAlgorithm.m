@@ -13,7 +13,7 @@ classdef GaussNewtonOptimizationAlgorithm < g2o.core.OptimizationAlgorithm
             end
         end
         
-        function [X, numberOfIterations] = solve(obj, X0, maximumNumberOfIterations)
+        function [X, numberOfIterations] = solve(obj, X0, maximumNumberOfIterations, restart)
             
             tic;
             

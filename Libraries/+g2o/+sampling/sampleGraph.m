@@ -44,7 +44,7 @@ end
 sampler.setParameters(L, epsilon);
 
 % Get the initial estimate
-theta0 = graph.computeMarginals();
+theta0 = graph.getX();
 
 % Various book keeping parameters
 theta = theta0;

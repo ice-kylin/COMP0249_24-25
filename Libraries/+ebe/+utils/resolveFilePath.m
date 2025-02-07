@@ -1,4 +1,24 @@
-function fullPath = resolveFilePath(fileName, levelsUp)
+function fullPath = resolveFilePath(filePath, levelsUp)
+    % RESOLVEFILEPATH Find the absolute directory of a file
+    %
+    % Syntax:
+    %   fullPath = resolveFilePath(filePath);
+    %   fullPath = resolveFilePath(filePath, levelsUp);
+    %
+    % Description:
+    %   This function takes a file path and tries to find its absolute
+    %   location on a computer. If the filePath appears to be absolute,
+    %   then it is simply returned. If it is relative, it is assumed to be
+    %   relative to a calling script, identifed by levelsUp.
+    %
+    % Inputs:
+    %   filePath - (string)
+    %      The file path to the file that's being searched for.
+    %   levelsUp - (int, optional)
+    %      The number of levels walked up the tree. [Default: 2]
+    %
+    % See also:
+    %   GETSCRIPTPATH
 
     if (nargin == 0)
         levelsUp = 2;
@@ -6,16 +26,16 @@ function fullPath = resolveFilePath(fileName, levelsUp)
 
     % First convert fileName to have the correct file separation for the
     % platform type
-    fileName = strrep(fileName, '/', filesep);
+    filePath = strrep(filePath, '/', filesep);
 
     % Check if the given file path is absolute
-    if isabsolute(fileName)
+    if isabsolute(filePath)
         % If it's absolute, just return it as-is
-        fullPath = fileName;
+        fullPath = filePath;
     else
         % If it's relative, construct the absolute path using getScriptPath
-        callingScriptPath = ebe.utils.getScriptPath(levelsUp); % Call your helper function
-        fullPath = fullfile(callingScriptPath, fileName); % Combine paths
+        callingScriptPath = ebe.utils.getScriptPath(levelsUp);
+        fullPath = fullfile(callingScriptPath, filePath); % Combine paths
     end
 end
 

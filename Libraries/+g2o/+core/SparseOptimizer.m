@@ -10,7 +10,7 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
        
         % The optimization algorithm
         optimizationAlgorithm;
-        
+
         % Use sparseinv?
         useSparseInv;
         
@@ -31,6 +31,8 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
             
             % If set to true, use the sparse inverse library
             obj.useSparseInv = (exist('sparseinv_mex', 'file') == 3);
+
+            obj.optimizationReinitialized = true;
         end
     end
     
@@ -69,72 +71,56 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
         % marginals, we mean the covariance values. If no vertices are
         % specified, the mean and covariance for the entire graph is
         % computed.
-        function [x, Px] = computeMarginals(obj, vertices)
-            
-            %%%% THIS HAS INCONSISTENT BEHAVIOUR:
-            %% SPARSEINV INVERTS ALL NON-SPARSE BLOCKS BUT NOT ENTIRE MATRIX
-            %% INV INVERTS WHOLE MATRIX
-            %% SUBSET SELECTOR ONLY GIVES COVARIANCE MATRICES ON DIAGONALS
+        function [X, PX] = computeMarginals(obj, vertices)
             
             % Check the graph is in a state where we can compute a value
             assert(obj.initializationRequired == false, ...
                 'g2o:sparseoptimizer:initializationrequired', ...
                 'Call initializeOptimization before extracting the marginals');
 
-            % Special case - if the Hessian is empty, assume nowt
-            if (isempty(obj.HX) == true)
-                x = zeros(3, 1);
-                Px = zeros(3, 3);
-                return
-            end
-            
-            % If a set of vertices wasn't specified, return the whole graph
+            % Flag if we want to skip the covariance
+            getP = (nargout == 2);
+
+            % Convenience processing - if no vertices are passed in, get
+            % all of them; if a single vertex is passed in outside of a
+            % cell array, wrap it in the cell array.
             if (nargin == 1)
-                x = obj.X;
-                if (obj.useSparseInv == true)
-                    Px = sparseinv(obj.HX);
-                else 
-                    Px = inv(obj.HX);
-                end
-                return
-            end
-            
-            % If the input was a single vertex, wrap it in a cell to
-            % simplify below
-            if (iscell(vertices) == false)
+                vertices = obj.verticesMap.values();
+            elseif(iscell(vertices) == false)
                 vertices = {vertices};
             end
-            
-            % Go through and figure out the dimension of the output
-            nDims = 0;
-            for v = 1 : length(vertices)
-                nDims = nDims + vertices{v}.dimension();
+
+            % How many vertices are there?
+            numMarginalizedVertices = numel(vertices);
+
+            % Allocate the mean and optionally the covariance
+            X = cell(numMarginalizedVertices, 1);
+            if (getP == true)
+                PX = cell(numMarginalizedVertices, 1);
             end
-            
-            % Preallocate
-            x = zeros(nDims, 1);
-            Px = sparse(nDims, nDims);
-            
-            % Compute the inverse (might have a smarter way to do it in the
-            % future!)
-            if (obj.useSparseInv == true)
-                PX = sparseinv(obj.HX);
-            else 
-                PX = inv(obj.HX);
-            end
-            
-            idx = 1;
-            for v = 1 : length(vertices)
-                d = vertices{v}.dimension();
-                id = idx:(idx+d-1);
-                if (vertices{v}.conditioned == true)
-                    x(id) = vertices{v}.estimate();
-                    Px(id, id) = zeros(d, d);
-                else
-                    x(id) = obj.X(vertices{v}.iX);
-                    Px(id, id) = PX(vertices{v}.iX, vertices{v}.iX);
+
+            % Compute the inverse Hessian. This is needed if the
+            % covariances are requested. Note that we can't compute this
+            % if the Hessian is empty.
+            if ((getP == true) && (isempty(obj.HX) == false))
+                if (obj.useSparseInv == true)
+                    P = sparseinv(obj.HX);
+                else 
+                    P = inv(obj.HX);
                 end
-                idx = idx + d;
+            end
+
+            % Copy the estimates over; conditioned vertices have a
+            % covariance of 0
+            for v = 1 : numMarginalizedVertices
+                X{v} = vertices{v}.estimate();
+                if (getP == true)
+                    if (vertices{v}.conditioned == true)
+                        PX{v} = zeros(numel(X{v}), numel(X{v}));
+                    else
+                        PX{v} = P(vertices{v}.iX, vertices{v}.iX);
+                    end
+                end
             end
         end
         
@@ -159,7 +145,9 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
                 'g2o:sparseoptimizer:optimizationalgorithmnotset', ...
                 'The optimization algorithm is not set');
             
-            [X, numIterations] = obj.optimizationAlgorithm.solve(obj.X, maximumNumberOfIterations);
+            [X, numIterations] = obj.optimizationAlgorithm.solve(obj.X, maximumNumberOfIterations, ...
+                obj.optimizationReinitialized);
+
             obj.X = X;
         end
 
@@ -268,8 +256,8 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
                 'The dimensions of X and dX are inconsistent; length(obj.X)=%d, length(dX)=%d', ...
                 length(obj.X), length(dX));
             
-            % Cheesy way to initialise the output vector to the right size
-            XdX = X * 0;
+            % Initialise the output vector to the right size
+            XdX = zeros(size(X));
             
             % Iterate over all the vertices and assign the values to the
             % state vectors. This is not very efficient, but it means that

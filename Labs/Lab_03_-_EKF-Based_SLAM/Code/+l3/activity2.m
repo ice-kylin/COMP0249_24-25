@@ -31,33 +31,3 @@ mainLoop.addViewer(simulatorViewer);
 
 % Run the main loop until it terminates
 mainLoop.run();
-
-% Plot out state information
-ebe.graphics.FigureManager.getFigure('Task 3 Estimation Error Results');
-clf
-
-stateLabels = {'$x$','$y$'};
-
-TEstimator = resultsAccumulator.timeStore;
-XTrueHistory = resultsAccumulator.xTrueStore;
-
-for f = 1 : 2
-    PX = resultsAccumulator.PEstStore{1};
-    X = resultsAccumulator.xEstStore{1};
-    subplot(2,1,f)
-    sigmaBound = 2 * sqrt(PX(f, :));
-    plot(TEstimator, -sigmaBound, 'r--', 'LineWidth', 2)
-    hold on
-    plot(TEstimator, sigmaBound, 'r--', 'LineWidth', 2)
-    stateError = X(f, :) - XTrueHistory(f, :);
-    plot(TEstimator, stateError, 'LineWidth', 2);
-
-    % Work out the axes
-    maxError = max(abs(stateError));
-    bound = 1.1 * max(maxError, max(sigmaBound));
-    axis([TEstimator(1) TEstimator(end) -bound bound])
-    
-    xlabel('Time (s)')
-    ylabel('Position $(ms)$', 'Interpreter','latex')
-    title(stateLabels{f}, 'Interpreter','latex')
-end

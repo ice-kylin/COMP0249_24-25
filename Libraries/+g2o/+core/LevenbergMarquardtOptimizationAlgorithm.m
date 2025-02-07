@@ -9,6 +9,8 @@ classdef LevenbergMarquardtOptimizationAlgorithm < g2o.core.OptimizationAlgorith
         
         % Some paramters
         tau;
+
+        mu;
         
         % Various error bounds
         e1;
@@ -30,7 +32,7 @@ classdef LevenbergMarquardtOptimizationAlgorithm < g2o.core.OptimizationAlgorith
             obj.e4 = 0;
         end
         
-        function [X, k] = solve(obj, X0, kmax)
+        function [X, k] = solve(obj, X0, kmax, restart)
             
             k = 1;
             nu = 2;
@@ -62,7 +64,9 @@ classdef LevenbergMarquardtOptimizationAlgorithm < g2o.core.OptimizationAlgorith
             stop = false;
             
             % Compute the initial step size
-            mu = obj.computeInitialMu(H);            
+            if (restart == true)
+                obj.mu = obj.computeInitialMu(H);
+            end
             
             while ((stop == false) && (k <= kmax))
                 fprintf('Iteration = %03d; Residual = %6.3f; Time = %3.3f\n', k, R0, toc);                
@@ -72,7 +76,7 @@ classdef LevenbergMarquardtOptimizationAlgorithm < g2o.core.OptimizationAlgorith
                 while ((rho < 0) && (stop == false))
 
                     % Compute the damped step
-                    dX = (H+mu*speye(n))\b;
+                    dX = (H + obj.mu * speye(n))\b;
 
                     % Termination condition
                     if (norm(dX) < obj.e2 * (norm(X) + obj.e2))
@@ -85,7 +89,7 @@ classdef LevenbergMarquardtOptimizationAlgorithm < g2o.core.OptimizationAlgorith
                     R1 = obj.optimizableGraph.chi2();
                 
                     % Work out the gain ratio
-                    rho = (R0 - R1) / (dX'*(mu*dX+b));
+                    rho = (R0 - R1) / (dX' * (obj.mu * dX + b));
 
                     % If rho is positive, the step was accepted
                     if (rho > 0)
@@ -103,10 +107,10 @@ classdef LevenbergMarquardtOptimizationAlgorithm < g2o.core.OptimizationAlgorith
                         stop = stop || (norm(b, 'inf') < obj.e1);
                         
                         % Rescale the step
-                        mu = mu * max(1/3,1-(2*rho-1)^3);
+                        obj.mu = obj.mu * max(1/3,1-(2*rho-1)^3);
                         nu = 2;
                     else
-                        mu = mu * nu;
+                        obj.mu = obj.mu * nu;
                         nu = nu * 2;
                     end
                 end

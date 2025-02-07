@@ -1,5 +1,6 @@
 classdef EventGeneratorQueue < handle
     % EventGeneratorQueue summary of EventGeneratorQueue
+    %
     % This class stores a time ordered series of generators which, when
     % called, will emit events in increasing time order. Instances of this
     % class are used inside the simulator.
