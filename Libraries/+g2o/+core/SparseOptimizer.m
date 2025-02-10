@@ -102,6 +102,8 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
             % Compute the inverse Hessian. This is needed if the
             % covariances are requested. Note that we can't compute this
             % if the Hessian is empty.
+
+            % Use sparseinv if possible because it's generally faster.
             if ((getP == true) && (isempty(obj.HX) == false))
                 if (obj.useSparseInv == true)
                     P = sparseinv(obj.HX);
@@ -172,8 +174,8 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
             % up construction, we compute the "upper triangle" and the
             % diagonal sub-blocks separately. We assemble them together
             % afterwards.
-            HXD = spalloc(n, n, obj.nonZeroElementsHXD);
-            HXU = spalloc(n, n, obj.nonZeroElementsHXU);
+            % HXD = spalloc(n, n, obj.nonZeroElementsHXD);
+            % HXU = spalloc(n, n, obj.nonZeroElementsHXU);
 
             % Construct the correction vector. This isn't sparse, so just
             % allocate it as a normal array.
@@ -190,7 +192,46 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
             % right triangle and then copy this over right at the end.
             % Note that the idx is empty for fixed vertices, so we skip
             % them.
-            edges = values(obj.edgesMap);            
+            % edges = values(obj.edgesMap);
+            % for e = 1 : length(edges)
+            %     edge = edges{e};
+            %     [H, b] = edge.computeHB();
+            %     for i = 1 : length(edge.edgeVertices)
+            %         idx = edge.edgeVertices{i}.iX;
+            %         if (isempty(idx) == true)
+            %             continue;
+            %         end
+            %         if (nargout == 2)
+            %             obj.bX(idx) = obj.bX(idx) + b{i};
+            %         end
+            %         HXD(idx, idx) = HXD(idx, idx) + H{i, i};
+            %         for j = i + 1 : length(edge.edgeVertices)
+            %             jdx = edge.edgeVertices{j}.iX;
+            %             HXU(idx, jdx) = HXU(idx, jdx) + H{i, j};
+            %         end
+            %     end
+            % end
+            % % Construct the full Hessian
+            % obj.HX = HXU + HXU' + HXD;
+
+            % Iterate over all the edges and get the H and b values for
+            % each edge. Assemble them into HX and bX for the entire graph.
+            % Note that HX is symmetric and only the upper right blocks are
+            % filled in by each edge. Therefore, we only fill the upper
+            % right triangle and then copy this over right at the end.
+            % Note that the idx is empty for fixed vertices, so we skip
+            % them.
+
+            % Preallocate arrays for row indices, column indices, and values
+            max_nnz = 1e6;  % Adjust based on your problem size
+            row_indices = zeros(max_nnz, 1);
+            col_indices = zeros(max_nnz, 1);
+            mat_values = zeros(max_nnz, 1);
+            
+            % Counter for non-zero elements
+            nnz_counter = 0;
+
+            edges = values(obj.edgesMap);
             for e = 1 : length(edges)
                 edge = edges{e};
                 [H, b] = edge.computeHB();
@@ -202,21 +243,59 @@ classdef SparseOptimizer < g2o.core.OptimizableGraph
                     if (nargout == 2)
                         obj.bX(idx) = obj.bX(idx) + b{i};
                     end
-                    HXD(idx, idx) = HXD(idx, idx) + H{i, i};
+
+                    %HXD(idx, idx) = HXD(idx, idx) + H{i, i};
+                
+                    % Convert block to triplet form (find returns non-zero indices and values)
+                    [local_row, local_col, local_vals] = find(H{i, i});
+                
+                    % Map local indices to global indices
+                    row_indices(nnz_counter+1 : nnz_counter+numel(local_vals)) = idx(local_row);
+                    col_indices(nnz_counter+1 : nnz_counter+numel(local_vals)) = idx(local_col);
+                    mat_values(nnz_counter+1 : nnz_counter+numel(local_vals)) = local_vals;
+                    
+                    % Update counter
+                    nnz_counter = nnz_counter + numel(local_vals);
+
                     for j = i + 1 : length(edge.edgeVertices)
                         jdx = edge.edgeVertices{j}.iX;
-                        HXU(idx, jdx) = HXU(idx, jdx) + H{i, j};
+
+                        % Map local to global indices
+                        [local_row, local_col, local_vals] = find(H{i, j});
+                        row_idx = idx(local_row);
+                        col_idx = jdx(local_col);
+                        
+                        % Accumulate both (i, j) and (j, i) for symmetry
+                        row_indices(nnz_counter+1:nnz_counter+numel(local_vals)) = row_idx;
+                        col_indices(nnz_counter+1:nnz_counter+numel(local_vals)) = col_idx;
+                        mat_values(nnz_counter+1:nnz_counter+numel(local_vals)) = local_vals;
+                        
+                        % Add the symmetric entries
+                        row_indices(nnz_counter+numel(local_vals)+1:nnz_counter+2*numel(local_vals)) = col_idx;
+                        col_indices(nnz_counter+numel(local_vals)+1:nnz_counter+2*numel(local_vals)) = row_idx;
+                        mat_values(nnz_counter+numel(local_vals)+1:nnz_counter+2*numel(local_vals)) = local_vals;
+                    
+                        % Update counter
+                        nnz_counter = nnz_counter + 2*numel(local_vals);
+
                     end
                 end
             end
             
-            % Construct the full Hessian
-            obj.HX = HXU + HXU' + HXD;
+            % Trim unused space
+            row_indices = row_indices(1:nnz_counter);
+            col_indices = col_indices(1:nnz_counter);
+            mat_values = mat_values(1:nnz_counter);
             
-            if (nargout > 1)
+            % Create the sparse matrix — this will sum any duplicate (row, col) entries automatically
+            obj.HX = sparse(row_indices, col_indices, mat_values, numel(X), numel(X));
+
+            %assert(norm(H2-obj.HX, 'fro') < 1e-6)
+
+            if (nargout > 0)
                 HX = obj.HX;
             end
-            if (nargout == 2)
+            if (nargout > 1)
                 bX = obj.bX;
             end
         end

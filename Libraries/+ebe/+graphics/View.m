@@ -28,10 +28,29 @@ classdef View < ebe.core.ConfigurableComponent
             %   view - (handle)
             %      An instance of a View
             obj@ebe.core.ConfigurableComponent(config);
-        end    
+        end
+
+        function [handles, entries] = legendEntries(obj)
+            % LEGENDENTRIES Return items that need to be posted into a
+            % legend
+            %
+            % Syntax:
+            %   [handles, entries] = view.legendEntries();
+            %
+            % Description:
+            %   Return cell arrays of handles and entries which contain
+            %   anything that needs to be posted to a figure legend.
+            %
+
+            handles = [];
+            entries = {};
+        end
+ 
     end
 
     methods(Access = public, Abstract)
+
+
         visualize(obj, eventArray);
             % VISUALIZE Update the visualization of this view.
             %

@@ -51,6 +51,10 @@ classdef BaseEdge < g2o.core.HyperGraphElement
         
         % The Jacobians
         J;
+
+        % Cached
+        H;
+        b;
         
     end
     
@@ -122,6 +126,11 @@ classdef BaseEdge < g2o.core.HyperGraphElement
             
             % Preallocate space for the Jacobians for each vertex
             obj.J = cell(1, numVertices);
+
+
+            obj.H = cell(obj.numVertices, obj.numVertices);
+            obj.b = cell(1, obj.numVertices);
+
         end
     end
     
@@ -462,26 +471,25 @@ classdef BaseEdge < g2o.core.HyperGraphElement
             %   b - (measurementDimension x 1 double)
             %       The weighted error vector
 
-            % Compute the Jacobians
-            obj.linearizeOplus();
-
             % Compute the error
             obj.computeError();
-            
-            H = cell(obj.numVertices, obj.numVertices);
-            b = cell(1, obj.numVertices);
+
+            % Compute the Jacobians
+            obj.linearizeOplus();
             
             % Work out the contribution from each vertex. Note
             % this is symmetric, so we only populate the upper triangle.
             % We also cache common terms
             for i = 1 : obj.numVertices         
-                b{i} = obj.J{i}' * (obj.Omega * obj.errorZ);
                 JWi = obj.J{i}' * obj.Omega;
-                H{i, i} = JWi * obj.J{i};
+                obj.b{i} = JWi * obj.errorZ;
+                obj.H{i, i} = JWi * obj.J{i};
                 for j = i + 1 : obj.numVertices
-                    H{i, j} = JWi * obj.J{j};
+                    obj.H{i, j} = JWi * obj.J{j};
                 end
             end
+            b = obj.b;
+            H = obj.H;
         end
         
         function setMeasurement(obj, newZ)

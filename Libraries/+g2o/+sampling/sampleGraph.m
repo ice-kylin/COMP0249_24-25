@@ -52,6 +52,9 @@ numRefresh = 0;
 thetaStore = NaN(length(theta0), numSamples);
 numAccepted = 0;
 
+% Select a new window for graphical output
+figure
+
 for k = 1 : numSamples
     if (rand < 0.01)
         theta = theta0;
@@ -60,7 +63,6 @@ for k = 1 : numSamples
     [theta, accepted] = sampler.sample([], theta);
     thetaStore(:, k) = theta;
     if (accepted == true)
-        figure(3)
         plot(thetaStore(1:4:end,1:k), thetaStore(3:4:end,1:k))
         drawnow
         numAccepted = numAccepted + 1;

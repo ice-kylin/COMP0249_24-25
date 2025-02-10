@@ -380,6 +380,7 @@ classdef MainLoop < ebe.core.ConfigurableComponent
             if (obj.enableGraphics == false)
                 return
             end
+            
             for v = 1 : numel(obj.viewers)
                 obj.viewers{v}.stop();
             end

@@ -43,7 +43,14 @@ classdef MeanCovarianceDrawer < ebe.graphics.Drawer
     methods(Access = protected)
         function ptsC = covarianceEllipsePoints(obj, x, P)
         
-            theta = (0 : obj.angleStep : 360) * pi / 180;
+            % Handle non-PSD
+            if (min(eig(P)) < 0)
+                ptsC = zeros(2, 0);
+                return
+            end
+
+            % Sample points
+            theta = deg2rad(0 : obj.angleStep : 360);
             ptsC = obj.sigmaValue * sqrtm(P+1e-12*eye(2)) * [cos(theta);sin(theta)];
             
             %translate

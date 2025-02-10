@@ -16,3 +16,6 @@
 %   prepareDirectory        - Create and / or clean up a directory
 %   readJSONFile            - Recursively read JSON file
 %   resolveFilePath         - Find absolute location of a file path
+%
+% Classes
+%   PerformanceData         - A class for storing a linked list of data

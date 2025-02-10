@@ -24,8 +24,23 @@ classdef ViewManager < ebe.core.ConfigurableComponent
         end
 
         function start(obj)
+            % Start everything, pulling legends as we go
+            legendHandles = [];
+            legendEntries = {};
             for v = 1 : numel(obj.views)
                 obj.views{v}.start();
+                [handles, entries] = obj.views{v}.legendEntries();
+                if (isempty(entries) == false)
+                    legendHandles(end + 1) = handles;
+                    legendEntries{end + 1} = entries;
+                end
+            end
+            legend(legendHandles, legendEntries);
+        end
+
+        function stop(obj)
+            for v = 1 : numel(obj.views)
+                obj.views{v}.stop();
             end
         end
 
