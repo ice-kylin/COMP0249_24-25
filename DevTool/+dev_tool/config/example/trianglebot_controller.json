@@ -1,6 +1,6 @@
 {
-    "odomUpdatePeriod": 0.1,
-    "odomSigma": [0.1, 0, 0.1],
+    "odomUpdatePeriod": 0.2,
+    "odomSigma": [0.2, 0.1, 1],
     "maxDiffDeltaRate": 20,
     "maxDelta": 20,
     "maxSpeed": 10,

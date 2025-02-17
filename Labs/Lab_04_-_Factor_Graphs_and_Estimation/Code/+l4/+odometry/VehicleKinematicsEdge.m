@@ -118,7 +118,7 @@ classdef VehicleKinematicsEdge < g2o.core.BaseBinaryEdge
                 0 0 1];
             predictedX = priorX;
             predictedX = predictedX + M * obj.z;
-            predictedX(3) = g2o.stuff.normalize_theta(predictedX(3) + obj.z(3));
+            predictedX(3) = g2o.stuff.normalize_theta(predictedX(3));
             obj.edgeVertices{2}.setEstimate(predictedX);
         end
 
